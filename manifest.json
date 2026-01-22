@@ -1,0 +1,16 @@
+{
+    "name": "rocketchat.pparent",
+    "description": "Package for the min browser",
+    "architecture": "@CLICK_ARCH@",
+
+    "title": "Rocket.Chat",
+    "hooks": {
+        "rocketchat": {
+            "apparmor": "rocketchat.apparmor",
+            "desktop":  "rocketchat.desktop"
+        }
+    },
+    "version": "4.11.2-1",
+    "maintainer": "Pierre Parent <pro@pierre-parent.fr>",
+    "framework" : "ubuntu-touch-24.04-1.x"
+}

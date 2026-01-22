@@ -1,0 +1,15 @@
+diff --git a/src/ui/main/rootWindow.ts b/src/ui/main/rootWindow.ts
+index df5f242dd..e45e731fe 100644
+--- a/src/ui/main/rootWindow.ts
++++ b/src/ui/main/rootWindow.ts
+@@ -97,6 +97,10 @@ export const createRootWindow = (): void => {
+       : {}),
+   });
+ 
++  _rootWindow.once('ready-to-show', () => {
++  _rootWindow.maximize();
++  });
++
+   // Block navigation to smb:// protocol
+   _rootWindow.webContents.on('will-navigate', (event, url) => {
+     if (typeof url === 'string' && url.toLowerCase().startsWith('smb://')) {

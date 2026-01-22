@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Rocket.Chat
+Comment=Rocket.Chat client
+Exec=./launcher.sh
+Terminal=false
+Type=Application
+Icon=icon.png
+X-Ubuntu-Touch=true
+X-Lomiri-Touch=true
+
+X-Ubuntu-Splash-Color=#f5455c
+X-Ubuntu-Splash-Image=icon-splash.png
+
+Name[en_US]=Signal

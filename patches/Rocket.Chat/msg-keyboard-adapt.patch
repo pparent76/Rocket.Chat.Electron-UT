@@ -1,0 +1,130 @@
+diff --git a/src/injected.ts b/src/injected.ts
+index 688d9f947..fb2abc430 100644
+--- a/src/injected.ts
++++ b/src/injected.ts
+@@ -2,6 +2,82 @@ import type { NotificationAction } from 'electron';
+ 
+ console.log('[Rocket.Chat Desktop] Injected.ts');
+ 
++console.log('[Rocket.Chat Desktop] Injecting Ubuntu Touch keyboard responsiveness');
++var tabletWordribbonHeight = 6; // gu
++var phoneWordribbonHeight = 4; // gu
++
++var phoneKeyboardHeightPortrait = 40; // percent of screen
++var phoneKeyboardHeightLandscape = 57; // percent of screen
++
++var tabletKeyboardHeightPortrait = 31; // percent of screen
++var tabletKeyboardHeightLandscape = 47; // percent of scree
++
++var keyboardMargin = 12; //px
++
++function guToPx(gu) {
++  const GRID_UNIT_PX=parseFloat(window.__cmdParams.gridUnitPx);
++  const scalingFactor=parseFloat(window.__cmdParams.forceScale);
++  //const pxPerMm = (96 / 25.4) * window.devicePixelRatio;
++  return Math.round(gu * GRID_UNIT_PX/ scalingFactor);
++}
++
++var lastClickEl;
++window.addEventListener("click", function() {
++  //Register Last clicked element
++  lastClickEl=event.target;
++  console.log(lastClickEl);
++});
++
++document.body.addEventListener('focusin', (event) => {
++    setTimeout(function () {
++    console.log("event1");
++
++      if ( event.target === document.querySelector('[name="msg"]') && document.querySelector('[name="msg"]').parentElement.parentElement.contains(lastClickEl) )
++      {
++          console.log("event2");
++      var isTablet=false;
++      if (window.innerWidth > guToPx(90) || window.innerHeight > guToPx(90))
++         isTablet=true;
++      if (window.innerWidth > window.innerHeight)
++      {
++        if (isTablet)
++        {
++        var pixel=guToPx(tabletWordribbonHeight)+keyboardMargin;
++        document.querySelector('[name="msg"]').parentElement.parentElement.style.paddingBottom=`calc(${tabletKeyboardHeightLandscape}vh + ${pixel}px)`;
++        }
++        else
++        {
++        var pixel=guToPx(phoneWordribbonHeight)+keyboardMargin;
++        document.querySelector('[name="msg"]').parentElement.parentElement.style.paddingBottom=`calc(${phoneKeyboardHeightLandscape}vh + ${pixel}px)`;
++        }
++      }
++      else
++      {
++        if (isTablet)
++        {
++        var pixel=guToPx(tabletWordribbonHeight)+keyboardMargin;
++        document.querySelector('[name="msg"]').parentElement.parentElement.style.paddingBottom=`calc(${tabletKeyboardHeightPortrait}vh + ${pixel}px)`;
++        }
++        else
++        {
++        var pixel=guToPx(phoneWordribbonHeight)+keyboardMargin;
++        document.querySelector('[name="msg"]').parentElement.parentElement.style.paddingBottom=`calc(${phoneKeyboardHeightPortrait}vh + ${pixel}px)`;
++        }
++      }
++      }
++      else
++      {
++          console.log(lastClickEl);
++          document.querySelector('[name="msg"]').parentElement.parentElement.style.paddingBottom="0";
++          if ( event.target === document.querySelector('[name="msg"]') )
++            event.target.blur();
++      }
++      }, 300);
++});
++
++
++console.log('[Rocket.Chat Desktop] End of injecting Ubuntu Touch keyboard responsiveness');
++
+ const resolveWithExponentialBackoff = <T>(
+   fn: () => Promise<T>,
+   { maxRetries = 5, delay = 1000 } = {}
+diff --git a/src/ui/main/serverView/index.ts b/src/ui/main/serverView/index.ts
+index db7c005b9..500dc9e66 100644
+--- a/src/ui/main/serverView/index.ts
++++ b/src/ui/main/serverView/index.ts
+@@ -586,17 +586,33 @@ export const attachGuestWebContentsEvents = async (): Promise<void> => {
+       )?.[0]
+   );
+ 
++
++
++  let rawInjectedCode: string | undefined;
+   let injectableCode: string | undefined;
+   handle('server-view/ready', async (webContents) => {
+-    if (!injectableCode) {
+-      injectableCode = await fs.promises.readFile(
+-        path.join(app.getAppPath(), 'app/injected.js'),
+-        'utf8'
+-      );
++    if (!rawInjectedCode) {
++      rawInjectedCode = await fs.promises.readFile(
++          path.join(app.getAppPath(), 'app/injected.js'),
++          'utf8'
++        );
+     }
+ 
++  const params = {
++        gridUnitPx: app.commandLine.getSwitchValue('grid-unit-px'),
++        forceScale: app.commandLine.getSwitchValue('force-device-scale-factor'),
++  };
++
++
++  injectableCode = `
++  window.__cmdParams = ${JSON.stringify(params)};
++
++  ${rawInjectedCode}
++  `;
++
+     webContents.executeJavaScript(injectableCode, true);
+ 
++
+     if (process.env.NODE_ENV === 'development') {
+       injectableCode = undefined;
+     }
