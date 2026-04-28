@@ -47,9 +47,12 @@ UA="Mozilla/5.0 (Linux; Ubuntu 24.04 like Android 9) AppleWebKit/537.36 Chrome/1
 newjson="{\"filtering\":{\"blockingLevel\":2,\"contentTypes\":[],\"exceptionDomains\":[]},\"updateNotificationsEnabled\":false,\"collectUsageStats\":false,\"useSeparateTitlebar\":true,\"customUserAgent\":\"$UA\"}"
 printf '%s\n' "$newjson" > "$CONFIGFILE"
 
+#Start a dummy Qt app called "placeholder-killer" to realease lomiri from its waiting, if necessary (not necessary with latest lomiri)
+echo "df84ff50557373cd882941cafb7ad344  /lib/aarch64-linux-gnu/liblomiri-private.so"| bin/md5sum -c -
+if [ "$?" -ne "0" ]; then
+( utils/sleep.sh; $PWD/bin/placeholder-killer )&
+fi
 
-#Open a dummy qt gui app to realease lomiri from its waiting
-( utils/sleep.sh; $PWD/bin/xdg-open )&
 ( utils/filedialog-deamon.sh $$ )&
 
 initpwd=$PWD
