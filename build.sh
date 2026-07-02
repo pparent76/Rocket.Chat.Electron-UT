@@ -20,14 +20,15 @@ echo "[1/8] Building Rocket.Chat ..."
 
 ROCKETCHAT_VERSION="4.15.1"
 
- rm -r Rocket.Chat.Electron-$ROCKETCHAT_VERSION || true
- ROCKET_URL=https://github.com/RocketChat/Rocket.Chat.Electron/archive/refs/tags/$ROCKETCHAT_VERSION.tar.gz
- curl -L $ROCKET_URL | tar xz
- cd Rocket.Chat.Electron-$ROCKETCHAT_VERSION/
+  rm -r Rocket.Chat.Electron-$ROCKETCHAT_VERSION || true
+  ROCKET_URL=https://github.com/RocketChat/Rocket.Chat.Electron/archive/refs/tags/$ROCKETCHAT_VERSION.tar.gz
+  curl -L $ROCKET_URL | tar xz
+  cd Rocket.Chat.Electron-$ROCKETCHAT_VERSION/
 
- echo "Apply patches"
- patch -p1 <  ${ROOT}/patches/Rocket.Chat/maximize-rootwindow.patch
- patch -p1 <  ${ROOT}/patches/Rocket.Chat/msg-keyboard-adapt.patch
+  echo "Apply patches"
+  patch -p1 <  ${ROOT}/patches/Rocket.Chat/maximize-rootwindow.patch
+  patch -p1 <  ${ROOT}/patches/Rocket.Chat/msg-keyboard-adapt.patch
+  patch -p1 <  ${ROOT}/patches/Rocket.Chat/contentHub.patch
 
 
 # Télécharger et exécuter le script d'installation

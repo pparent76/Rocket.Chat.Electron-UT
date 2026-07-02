@@ -1,0 +1,125 @@
+diff --git a/src/downloads/main/setup.ts b/src/downloads/main/setup.ts
+index 63758a11f0df03016ee694d1ee582676296ed902..09947773f912582b3e78f5d68249a75f06a05262 100644
+--- a/src/downloads/main/setup.ts
++++ b/src/downloads/main/setup.ts
+@@ -1,71 +1,119 @@
+ import { existsSync, statSync } from 'fs';
+ import os from 'os';
+ import path from 'path';
++import { pathToFileURL } from 'url';
+ 
+-import { app, webContents } from 'electron';
++import type { DownloadItem, Event, Session } from 'electron';
++import { app, session as electronSession, shell, webContents } from 'electron';
+ import electronDl from 'electron-dl';
+ import ElectronStore from 'electron-store';
+ import { t } from 'i18next';
+ 
+ import { createNotification } from '../../notifications/preload';
+ import { handleWillDownloadEvent } from '../main';
+ 
+ type DownloadPrefs = {
+   lastDownloadDirectory?: string;
+ };
+ 
+ // Lazy default download path resolution
+ let cachedDefaultDownloadPath: string | null = null;
+ 
+ function getDefaultDownloadPath(): string {
+   if (cachedDefaultDownloadPath === null) {
+     try {
+       cachedDefaultDownloadPath = app.getPath('downloads');
+     } catch {
+       cachedDefaultDownloadPath = os.tmpdir();
+     }
+   }
+   return cachedDefaultDownloadPath;
+ }
+ 
+ function isValidDirectory(dir: string): boolean {
+   try {
+     return !!dir && existsSync(dir) && statSync(dir).isDirectory();
+   } catch {
+     return false;
+   }
+ }
+ 
++const sessionsWithDownloadHandler = new WeakSet<Session>();
++
++const safeFilename = (filename: string): string => {
++  const sanitized = Array.from(filename)
++    .map((char) => {
++      if (char.charCodeAt(0) < 32 || /[<>:"/\\|?*]/.test(char)) {
++        return '_';
++      }
++
++      return char;
++    })
++    .join('')
++    .replace(/\s+/g, ' ')
++    .trim();
++
++  return sanitized || 'download';
++};
++
++const registerDownloadHandler = (session: Session): void => {
++  if (sessionsWithDownloadHandler.has(session)) {
++    return;
++  }
++
++  sessionsWithDownloadHandler.add(session);
++
++  session.on('will-download', (_event: Event, item: DownloadItem): void => {
++    console.log(`[download] ${item.getFilename()} <- ${item.getURL()}`);
++
++    const downloadDir = getDefaultDownloadPath();
++    item.setSavePath(path.join(downloadDir, safeFilename(item.getFilename())));
++
++    item.on('done', async (_event: Event, state: string) => {
++      if (state === 'completed') {
++        await shell.openExternal(pathToFileURL(item.getSavePath()).toString());
++      }
++    });
++  });
++};
++
++const setupDownloadHandlersForAllSessions = (): void => {
++  registerDownloadHandler(electronSession.defaultSession);
++  app.on('session-created', registerDownloadHandler);
++};
++
+ const downloadStore = new ElectronStore<DownloadPrefs>({
+   name: 'download-preferences',
+   schema: {
+     lastDownloadDirectory: { type: 'string' },
+   },
+ });
+ 
+ export const setupElectronDlWithTracking = () => {
++  setupDownloadHandlersForAllSessions();
++
+   electronDl({
+     saveAs: true,
+     onStarted: (item) => {
+       try {
+         // Set the save dialog options with both directory and filename
+         const configuredDir = downloadStore.get(
+           'lastDownloadDirectory',
+           getDefaultDownloadPath()
+         );
+         const lastDownloadDir =
+           configuredDir && isValidDirectory(configuredDir)
+             ? configuredDir
+             : getDefaultDownloadPath();
+         const fullPath = path.join(lastDownloadDir, item.getFilename());
+ 
+         item.setSaveDialogOptions({
+           defaultPath: fullPath,
+         });
+ 
+         // Find the webContents that initiated this download
+         // According to electron-dl docs, onStarted only receives DownloadItem
+         // We need to find an active webContents for tracking purposes
+         const webContentsArray = webContents.getAllWebContents();
+ 
+         // Use the first available webContents for tracking
