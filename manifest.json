@@ -14,7 +14,7 @@
         "push-helper": "rocketchat-push-helper.json"
         }
     },
-    "version": "4.14.0-1",
+    "version": "4.15.1-1",
     "maintainer": "Pierre Parent <pro@pierre-parent.fr>",
     "framework" : "ubuntu-touch-24.04-1.x"
 }

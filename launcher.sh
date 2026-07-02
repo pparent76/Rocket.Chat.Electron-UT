@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 export GDK_SCALE=2  
 export GTK_IM_MODULE=Maliit 
@@ -31,29 +31,58 @@ fi
 export PATH=$PWD/bin:$PATH
 utils/mkdir.sh /home/phablet/.cache/rocketchat.pparent/
 
+#Read micstate in conf
+while read p; do
+  if [[ "$p" == *"microState="* ]]; then  micstate=$p; fi
+  if [[ "$p" == *"keyboardHeight="* ]]; then   keyboardHeight="${p#keyboardHeight=}" ; fi
+done <  /home/phablet/.config/rocketchat.pparent/rocketchat.pparent/rocketchat.pparent.conf 
+
+
+if { [[ "$micstate" != *"microState=1"* ]] && [[ "$micstate" != *"microState=4"* ]]; } || \
+   { [[ "$keyboardHeight" = "" ]] || [[ "$keyboardHeight" -lt "100" ]] || [[ "$keyboardHeight" -gt "4000" ]]; }; then
+        xdotool sleep 2;
+        qmlscene utils/mic-permission-requester/Main.qml -I utils/mic-permission-requester/ &
+        xdotool sleep 5;
+        while true; do
+            xdotool sleep 1;
+            while read p; do
+                if [[ "$p" == *"microState="* ]]; then  micstate=$p; fi
+            done <  /home/phablet/.config/rocketchat.pparent/rocketchat.pparent/rocketchat.pparent.conf 
+            echo "$micstate"
+            if  [ "$micstate" == "microState=1" ]||  [ "$micstate" == "microState=2" ]; then
+                break;
+            fi
+            if  [ "$micstate" == "microState=4" ]; then
+                    break;
+            fi
+        done
+fi
+
+#Read micstate in conf
+while read p; do
+  if [[ "$p" == *"keyboardHeight="* ]]; then keyboardHeight="${p#keyboardHeight=}" ; fi
+done <  /home/phablet/.config/rocketchat.pparent/rocketchat.pparent/rocketchat.pparent.conf 
+
 scale=$(./utils/get-scale.sh 2>/dev/null )
 
 
-dpioptions="--high-dpi-support=1 --force-device-scale-factor=$scale --grid-unit-px=$GRID_UNIT_PX"
+dpioptions="--high-dpi-support=1 --force-device-scale-factor=$scale --keyboard-height=$keyboardHeight"
 sandboxoptions="--no-sandbox"
 gpuoptions="--disable-gpu"
 
-###################################################
-# Handle customUserAgent
-####################################################
-CONFIGFILE="/home/phablet/.config/rocketchat.pparent/Min/settings.json"
-utils/mkdir.sh /home/phablet/.config/rocketchat.pparent/Min/
-UA="Mozilla/5.0 (Linux; Ubuntu 24.04 like Android 9) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36"
-newjson="{\"filtering\":{\"blockingLevel\":2,\"contentTypes\":[],\"exceptionDomains\":[]},\"updateNotificationsEnabled\":false,\"collectUsageStats\":false,\"useSeparateTitlebar\":true,\"customUserAgent\":\"$UA\"}"
-printf '%s\n' "$newjson" > "$CONFIGFILE"
-
 #Start a dummy Qt app called "placeholder-killer" to realease lomiri from its waiting, if necessary (not necessary with latest lomiri)
-echo "df84ff50557373cd882941cafb7ad344  /lib/aarch64-linux-gnu/liblomiri-private.so"| bin/md5sum -c -
-if [ "$?" -ne "0" ]; then
+#Version 1.2: 2abe4aa39f76b1526c334afdfeef309b  /lib/aarch64-linux-gnu/liblomiri-private.so
+#echo "2abe4aa39f76b1526c334afdfeef309b  /lib/aarch64-linux-gnu/liblomiri-private.so"| bin/md5sum -c -
+echo "2abe4aa39f76b1526c334afdfeef309b  /lib/aarch64-linux-gnu/liblomiri-private.so"| bin/md5sum -c -
+if [ "$?" -eq "0" ]; then
 ( utils/sleep.sh; $PWD/bin/placeholder-killer )&
 fi
 
-( utils/filedialog-deamon.sh $$ )&
+echo "2abe4aa39f76b1526c334afdfeef309b  /lib/aarch64-linux-gnu/liblomiri-private.so"| md5sum -c -
+#If we are running the latest version of lomiri we'll use Xcb to display ContentHub Windows
+if [ "$?" -ne "0" ]; then
+    export QT_QPA_PLATFORM=xcb
+fi
 
 initpwd=$PWD
 utils/mkdir.sh /home/phablet/.cache/rocketchat.pparent/downloads/

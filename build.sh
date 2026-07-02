@@ -18,17 +18,17 @@ INSTALL_DIR="${BUILD_DIR}/install"
 # =================================================
 echo "[1/8] Building Rocket.Chat ..."
 
-ROCKETCHAT_VERSION="4.14.0"
+ROCKETCHAT_VERSION="4.15.1"
 
-rm -r Rocket.Chat.Electron-$ROCKETCHAT_VERSION || true
-ROCKET_URL=https://github.com/RocketChat/Rocket.Chat.Electron/archive/refs/tags/$ROCKETCHAT_VERSION.tar.gz
-curl -L $ROCKET_URL | tar xz
-cd Rocket.Chat.Electron-$ROCKETCHAT_VERSION/
+ rm -r Rocket.Chat.Electron-$ROCKETCHAT_VERSION || true
+ ROCKET_URL=https://github.com/RocketChat/Rocket.Chat.Electron/archive/refs/tags/$ROCKETCHAT_VERSION.tar.gz
+ curl -L $ROCKET_URL | tar xz
+ cd Rocket.Chat.Electron-$ROCKETCHAT_VERSION/
 
-echo "git apply"
-cat ${ROOT}/patches/Rocket.Chat/maximize-rootwindow.patch
-patch -p1 <  ${ROOT}/patches/Rocket.Chat/maximize-rootwindow.patch
-patch -p1 <  ${ROOT}/patches/Rocket.Chat/msg-keyboard-adapt.patch
+ echo "Apply patches"
+ patch -p1 <  ${ROOT}/patches/Rocket.Chat/maximize-rootwindow.patch
+ patch -p1 <  ${ROOT}/patches/Rocket.Chat/msg-keyboard-adapt.patch
+
 
 # Télécharger et exécuter le script d'installation
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.6/install.sh | bash
@@ -69,33 +69,34 @@ make
 # =================================================
 echo "[3/8] Building maliit-inputcontext-gtk3 and download dependencies..."
 
+cd ${BUILD_DIR}
 
 PKGNAME="maliit-inputcontext-gtk"
-MALIIT_VERSION="0.99.1+git20151116.72d7576"
-ORIG_URL="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/maliit-inputcontext-gtk/0.99.1+git20151116.72d7576-3build3/maliit-inputcontext-gtk_0.99.1+git20151116.72d7576.orig.tar.xz"
-DEBIAN_URL="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/maliit-inputcontext-gtk/0.99.1+git20151116.72d7576-3build3/maliit-inputcontext-gtk_0.99.1+git20151116.72d7576-3build3.debian.tar.xz"
+VERSION_MALIIT="0.99.1+git20151116.72d7576"
+ORIG_URL="https://ports.ubuntu.com/ubuntu-ports/ubuntu-ports/pool/universe/m/maliit-inputcontext-gtk/maliit-inputcontext-gtk_0.99.1+git20151116.72d7576.orig.tar.xz"
+DEBIAN_URL="https://ports.ubuntu.com/ubuntu-ports/ubuntu-ports/pool/universe/m/maliit-inputcontext-gtk/maliit-inputcontext-gtk_0.99.1+git20151116.72d7576-3build3.debian.tar.xz"
 
 
 
-WORKDIR_MALIIT="${BUILD_DIR}/${PKGNAME}-${MALIIT_VERSION}"
+WORKDIR_MALIIT="${BUILD_DIR}/${PKGNAME}-${VERSION_MALIIT}"
 rm -rvf $WORKDIR_MALIIT/ || true
 mkdir -p "$WORKDIR_MALIIT"
 cd "$WORKDIR_MALIIT"
 
 echo "📦 Download sources..."
-wget -q "$ORIG_URL" -O "${PKGNAME}_${MALIIT_VERSION}.orig.tar.xz"
-wget -q "$DEBIAN_URL" -O "${PKGNAME}_${MALIIT_VERSION}.debian.tar.xz"
+wget -q "$ORIG_URL" -O "${PKGNAME}_${VERSION_MALIIT}.orig.tar.xz"
+wget -q "$DEBIAN_URL" -O "${PKGNAME}_${VERSION_MALIIT}.debian.tar.xz"
 
 echo "📂 Extract original code..."
-tar -xf "${PKGNAME}_${MALIIT_VERSION}.orig.tar.xz"
-SRC_DIR_MALIIT=$(tar -tf "${PKGNAME}_${MALIIT_VERSION}.orig.tar.xz" | head -1 | cut -d/ -f1)
+tar -xf "${PKGNAME}_${VERSION_MALIIT}.orig.tar.xz"
+SRC_DIR_MALIIT=$(tar -tf "${PKGNAME}_${VERSION_MALIIT}.orig.tar.xz" | head -1 | cut -d/ -f1)
 
 echo "📂 Extract debian files..."
-tar -xf "${PKGNAME}_${MALIIT_VERSION}.debian.tar.xz" -C "$SRC_DIR_MALIIT"
+tar -xf "${PKGNAME}_${VERSION_MALIIT}.debian.tar.xz" -C "$SRC_DIR_MALIIT"
 
 echo "Apply patch..."
-cd ${BUILD_DIR}/$SRC_DIR_MALIIT/maliit-inputcontext-gtk-$MALIIT_VERSION/
-patch ${BUILD_DIR}/$SRC_DIR_MALIIT/maliit-inputcontext-gtk-$MALIIT_VERSION/gtk-input-context/client-gtk/client-imcontext-gtk.c  ${ROOT}/patches/maliit-inputcontext-gtk/client-imcontext-gtk.c.patch
+cd ${BUILD_DIR}/$SRC_DIR_MALIIT/maliit-inputcontext-gtk-$VERSION_MALIIT/
+patch ${BUILD_DIR}/$SRC_DIR_MALIIT/maliit-inputcontext-gtk-$VERSION_MALIIT/gtk-input-context/client-gtk/client-imcontext-gtk.c  ${ROOT}/patches/maliit-inputcontext-gtk/client-imcontext-gtk.c.patch
 echo "${ROOT}/patches/maliit-inputcontext-gtk/client-imcontext-gtk.c.patch"
 
 echo "Compile..."
@@ -140,6 +141,14 @@ cmake --build .
 rm -rvf ${BUILD_DIR}/upload-helper
 cp -r ${ROOT}/utils/upload-helper/ ${BUILD_DIR}/upload-helper
 cd ${BUILD_DIR}/upload-helper/qml-upload-helper-module/
+mkdir build
+cd build
+cmake ..
+cmake --build .
+
+rm -rvf ${BUILD_DIR}/mic-permission-requester/
+cp -r ${ROOT}/utils/mic-permission-requester/ ${BUILD_DIR}/mic-permission-requester
+cd ${BUILD_DIR}/mic-permission-requester/AudioModule/
 mkdir build
 cd build
 cmake ..
@@ -259,8 +268,17 @@ mkdir -p $INSTALL_DIR/utils/upload-helper/Pparent/UploadHelper
 cp ${BUILD_DIR}/upload-helper/qml-upload-helper-module/build/libUploadHelperPlugin.so $INSTALL_DIR/utils/upload-helper/Pparent/UploadHelper/
 cp ${BUILD_DIR}/upload-helper/qml-upload-helper-module/qmldir $INSTALL_DIR/utils/upload-helper/Pparent/UploadHelper/
 
+
+mkdir -p $INSTALL_DIR/utils/mic-permission-requester/AudioWriter/ || true
+cp ${BUILD_DIR}/mic-permission-requester/AudioModule/libaudiowriter.so $INSTALL_DIR/utils/mic-permission-requester/AudioWriter/
+cp ${BUILD_DIR}/mic-permission-requester/AudioModule/qmldir $INSTALL_DIR/utils/mic-permission-requester/AudioWriter/
+
+cp -r ${ROOT}/utils/mic-permission-requester "$INSTALL_DIR/utils/"
+cp $INSTALL_DIR/icon.png "$INSTALL_DIR/utils/mic-permission-requester/"
+
+
 echo "Copying maliit-input-context..."
-cp $WORKDIR_MALIIT/maliit-inputcontext-gtk-$MALIIT_VERSION/builddir/gtk3/gtk-3.0/im-maliit.so $INSTALL_DIR/lib/aarch64-linux-gnu/gtk-3.0/3.0.0/immodules/
+cp $WORKDIR_MALIIT/maliit-inputcontext-gtk-$VERSION_MALIIT/builddir/gtk3/gtk-3.0/im-maliit.so $INSTALL_DIR/lib/aarch64-linux-gnu/gtk-3.0/3.0.0/immodules/
 
 # ========================
 # STEP 7: BUILD THE CLICK PACKAGE
