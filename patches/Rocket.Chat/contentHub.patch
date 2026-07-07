@@ -123,3 +123,151 @@ index 63758a11f0df03016ee694d1ee582676296ed902..09947773f912582b3e78f5d68249a75f
          const webContentsArray = webContents.getAllWebContents();
  
          // Use the first available webContents for tracking
+
+diff --git a/src/preload.ts  b/src/preload.ts
+--- a/src/preload.ts      2026-07-07 12:24:16.876527370 +0200
++++ b/src/preload.ts  2026-07-07 12:25:56.932955796 +0200
+@@ -1,1 +1,1 @@
+-import { contextBridge, webFrame } from 'electron';
++import { contextBridge, ipcRenderer, webFrame } from 'electron';
+@@ -93 +93,55 @@
+ window.addEventListener('DOMContentLoaded', start);
++
++ type PickFileResultType =
++   | Readonly<{
++       canceled: true;
++     }>
++   | Readonly<{
++       canceled: false;
++       data: ArrayBuffer;
++       name: string;
++       lastModified: number;
++       type: string;
++     }>;
++
++ export const setupFileInputPicker = (): void => {
++   document.addEventListener(
++     'click',
++     async event => {
++       const target = event.target;
++       if (!(target instanceof Element)) {
++         return;
++       }
++
++       const input = target.closest<HTMLInputElement>('input[type="file"]');
++       if (!input) {
++         return;
++       }
++
++       event.preventDefault();
++       event.stopImmediatePropagation();
++
++       const result = (await ipcRenderer.invoke(
++         'pick-file'
++       )) as PickFileResultType;
++       if (result.canceled) {
++         return;
++       }
++
++       const file = new File([result.data], result.name, {
++         lastModified: result.lastModified,
++         type: result.type,
++       });
++
++       const dataTransfer = new DataTransfer();
++       dataTransfer.items.add(file);
++       input.files = dataTransfer.files;
++
++       input.dispatchEvent(new Event('input', { bubbles: true }));
++       input.dispatchEvent(new Event('change', { bubbles: true }));
++     },
++     true
++   );
++ };
++
++ setupFileInputPicker();
+
+diff --git a/src/main.ts  b/src/main.ts
+--- a//src/main.ts 2026-07-07 13:06:17.539540402 +0200
++++ b//src/main.ts     2026-07-07 13:06:23.211565873 +0200
+@@ -1,3 +1,7 @@
+-import { app } from 'electron';
++import { execFile } from 'node:child_process';
++import { readFile, stat } from 'node:fs/promises';
++import { basename, extname } from 'node:path';
++
++import { app, ipcMain } from 'electron';
+ 
+ import {
+@@ -65,2 +71,70 @@
+ 
++ //----------------------------------------------------------
++ //       Function added for Ubuntu Touch (contentHub)
++ //----------------------------------------------------------
++ ipcMain.handle('pick-file', async () => {
++
++   const MIME_BY_EXT: Readonly<Record<string, string>> = {
++   '.jpg': 'image/jpeg',
++   '.jpeg': 'image/jpeg',
++   '.png': 'image/png',
++   '.gif': 'image/gif',
++   '.webp': 'image/webp',
++   '.heic': 'image/heic',
++   '.pdf': 'application/pdf',
++   '.txt': 'text/plain',
++   '.apng': 'image/apng',
++   '.avif': 'image/avif',
++   '.bmp': 'image/bmp',
++   '.svg': 'image/svg+xml',
++   '.mp4': 'video/mp4',
++   '.mov': 'video/quicktime',
++   '.webm': 'video/webm',
++   '.mkv': 'video/x-matroska',
++   '.avi': 'video/x-msvideo',
++   '.3gp': 'video/3gpp',
++   '.m4v': 'video/x-m4v',
++   '.mpg': 'video/mpeg',
++   '.mpeg': 'video/mpeg'
++   };
++
++   const filePath = await new Promise<string>((resolve, reject) => {
++     execFile(
++       '/opt/click.ubuntu.com/rocketchat.pparent/current/utils/select-file.sh',
++       [],
++       (error, stdout) => {
++         if (error) {
++           reject(error);
++           return;
++         }
++
++         resolve(stdout.trim());
++       }
++     );
++   });
++
++   if (!filePath) {
++     return { canceled: true };
++   }
++
++   const [data, { mtimeMs }] = await Promise.all([
++     readFile(filePath),
++     stat(filePath),
++   ]);
++
++   const fileType = MIME_BY_EXT[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
++   return {
++     canceled: false,
++     data: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
++     name: basename(filePath),
++     type: fileType,
++     lastModified: mtimeMs,
++   };
++
++ });
++ //----------------------------------------------------------
++ //       End Function added for Ubuntu Touch (contentHub)
++ //----------------------------------------------------------
++
++
+ const start = async (): Promise<void> => {
+ 

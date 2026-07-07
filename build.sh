@@ -220,6 +220,7 @@ cp ${ROOT}/utils/sleep.sh "$INSTALL_DIR/utils/"
 cp ${ROOT}/utils/mkdir.sh "$INSTALL_DIR/utils/"
 cp ${ROOT}/utils/get-scale.sh "$INSTALL_DIR/utils/"
 cp ${ROOT}/utils/filedialog-deamon.sh "$INSTALL_DIR/utils/"
+cp ${ROOT}/utils/select-file.sh "$INSTALL_DIR/utils/"
 
 echo "Copying libraries dependencies..."
 cd ${BUILD_DIR}
@@ -245,6 +246,7 @@ cp ${BUILD_DIR}/placeholder-killer/build/placeholder-killer $INSTALL_DIR/bin/
 echo "Copying libnotify"
 cp ${BUILD_DIR}/libnotify/libnotify-0.8.3/obj-aarch64-linux-gnu/libnotify/* $INSTALL_DIR/lib/aarch64-linux-gnu/ || true
 
+chmod +x $INSTALL_DIR/utils/select-file.sh
 chmod +x $INSTALL_DIR/utils/rm.sh
 chmod +x $INSTALL_DIR/utils/sleep.sh
 chmod +x $INSTALL_DIR/utils/mkdir.sh
